@@ -1,0 +1,26 @@
+﻿<Page
+    x:Class="AlternatePushChannel.SampleApp.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:AlternatePushChannel.SampleApp"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid>
+        <TextBlock
+            Text="Welcome!"
+            Style="{ThemeResource HeaderTextBlockStyle}"
+            Margin="20"/>
+
+        <TextBox
+            x:Name="TextBoxSubscriptionJson"
+            IsReadOnly="True"
+            TextWrapping="Wrap"
+            VerticalAlignment="Bottom"
+            Header="SubscriptionJson"
+            Margin="20"
+            Text="Creating..."/>
+    </Grid>
+</Page>
