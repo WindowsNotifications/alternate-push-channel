@@ -20,20 +20,20 @@ namespace WebPush.Util
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="userKey">The P256DH from subscription</param>
-        /// <param name="userSecret">The Auth from subscription</param>
+        /// <param name="p256dhPublic">The P256DH from subscription</param>
+        /// <param name="auth">The Auth from subscription</param>
         /// <param name="payload">Plain-text payload</param>
         /// <returns></returns>
-        public static EncryptionResult Encrypt(string userKey, string userSecret, string payload)
+        public static EncryptionResult Encrypt(string p256dhPublic, string auth, string payload)
         {
-            var userKeyBytes = WebEncoder.Base64UrlDecode(userKey);
-            var userSecretBytes = WebEncoder.Base64UrlDecode(userSecret);
+            var p256dhPublicBytes = WebEncoder.Base64UrlDecode(p256dhPublic);
+            var authBytes = WebEncoder.Base64UrlDecode(auth);
             var payloadBytes = Encoding.UTF8.GetBytes(payload);
 
-            return Encrypt(userKeyBytes, userSecretBytes, payloadBytes);
+            return Encrypt(p256dhPublicBytes, authBytes, payloadBytes);
         }
 
-        public static EncryptionResult Encrypt(byte[] userKey, byte[] userSecret, byte[] payload)
+        public static EncryptionResult Encrypt(byte[] p256dhPublic, byte[] auth, byte[] payload)
         {
             var salt = GenerateSalt(16);
             var serverKeyPair = ECKeyHelper.GenerateKeys();
@@ -41,14 +41,14 @@ namespace WebPush.Util
             var ecdhAgreement = AgreementUtilities.GetBasicAgreement("ECDH");
             ecdhAgreement.Init(serverKeyPair.Private);
 
-            var userPublicKey = ECKeyHelper.GetPublicKey(userKey);
+            var userPublicKey = ECKeyHelper.GetPublicKey(p256dhPublic);
 
             var key = ecdhAgreement.CalculateAgreement(userPublicKey).ToByteArrayUnsigned();
             var serverPublicKey = ((ECPublicKeyParameters)serverKeyPair.Public).Q.GetEncoded(false);
 
-            var prk = HKDF(userSecret, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
-            var cek = HKDF(salt, prk, CreateInfoChunk("aesgcm", userKey, serverPublicKey), 16);
-            var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", userKey, serverPublicKey), 12);
+            var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
+            var cek = HKDF(salt, prk, CreateInfoChunk("aesgcm", p256dhPublic, serverPublicKey), 16);
+            var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", p256dhPublic, serverPublicKey), 12);
 
             var input = AddPaddingToInput(payload);
             var encryptedMessage = EncryptAes(nonce, cek, input);
