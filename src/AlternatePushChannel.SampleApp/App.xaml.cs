@@ -1,4 +1,5 @@
-﻿using Microsoft.Toolkit.Uwp.Notifications;
+﻿using AlternatePushChannel.Library;
+using Microsoft.Toolkit.Uwp.Notifications;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,6 +65,11 @@ namespace AlternatePushChannel.SampleApp
         protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
             RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
+
+            var headers = notification.Headers.Values.ToArray();
+            var headersKeys = notification.Headers.Keys.ToArray();
+
+            var payload = PushManager.Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
 
             // Show a notification
             // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
