@@ -9,7 +9,7 @@ Create a new UWP app.
 
 ## 2. Add the library
 
-Our AlternatePushChannel library helps simplify some of the code around encryption.
+Our AlternatePushChannel library helps simplify some of the code around encryption (located in this repository in `src\AlternatePushChannel.Library`).
 
 
 ## 3. Create your application server keys
