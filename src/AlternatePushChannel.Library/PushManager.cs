@@ -50,6 +50,8 @@ namespace AlternatePushChannel.Library
         /// <returns></returns>
         public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption)
         {
+            return Decryptor.Decrypt(encryptedPayload, cryptoKey, contentEncoding, encryption, _keyPair, _authKey);
+
             // Trip starting dh=
             cryptoKey = cryptoKey.Substring("dh=".Length);
 
