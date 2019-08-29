@@ -31,15 +31,18 @@ namespace AlternatePushChannel.Library
         public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption, AsymmetricCipherKeyPair p256dh, string authKey)
         {
             string serverPublicKey = cryptoKey.Substring("dh=".Length);
+
+            // Note that using UrlBase64.Decode fails later on, but our WebEncoder seems to decode it so that it works later on
             byte[] serverPublicKeyBytes = WebEncoder.Base64UrlDecode(serverPublicKey);
 
             string saltStr = encryption.Substring("salt=".Length);
 
-            // Maybe the payload isn't UTF8?
-            return Decrypt(Encoding.UTF8.GetBytes(encryptedPayload), serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
+            // Maybe the payload isn't UTF8? In Edge's code they decrypt as either UTF16 or Base64 https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushMessageContent.cpp&version=GBofficial%2Frs_edge_spartan
+            return Decrypt(Encoding.Unicode.GetBytes(encryptedPayload), serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
         }
         private static string Decrypt(byte[] encryptedBytes, byte[] serverPublicKeyBytes, string contentEncoding, byte[] salt, AsymmetricCipherKeyPair p256dh, byte[] auth)
         {
+            // Edge's decrypt method: https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushCryptoProvider.cpp&version=GBofficial%2Frs_edge_spartan&line=125&lineStyle=plain&lineEnd=125&lineStartColumn=29&lineEndColumn=43
             // Same as the Encrypt method except user and server are swapped
 
             var userKeyPair = p256dh;
@@ -48,9 +51,8 @@ namespace AlternatePushChannel.Library
             var ecdhAgreement = AgreementUtilities.GetBasicAgreement("ECDH");
             ecdhAgreement.Init(userKeyPair.Private); // We use our private key
 
-            // This is probably correct? Could we just use the bytes directly?
+            // This is correct
             var serverPublicKey = ECKeyHelper.GetPublicKey(serverPublicKeyBytes);
-            var serverPublicKeyBytesAlt = serverPublicKey.Q.GetEncoded(false);
 
             // This seems correct
             var key = ecdhAgreement.CalculateAgreement(serverPublicKey).ToByteArrayUnsigned();
@@ -62,8 +64,9 @@ namespace AlternatePushChannel.Library
             var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
 
             // Maybe the user and server should be flipped?
-            var cek = HKDF(salt, prk, CreateInfoChunk("aesgcm", userPublicKey, serverPublicKeyBytesAlt), 16);
-            var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", userPublicKey, serverPublicKeyBytesAlt), 12);
+            // Edge's DeriveEncryptionKeys: https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushCryptoProvider.cpp&version=GBofficial%2Frs_edge_spartan&line=186&lineStyle=plain&lineEnd=186&lineStartColumn=29&lineEndColumn=49
+            var cek = HKDF(salt, prk, CreateInfoChunk(contentEncoding, userPublicKey, serverPublicKeyBytes), 16);
+            var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", userPublicKey, serverPublicKeyBytes), 12);
 
             var decryptedMessage = DecryptAes(nonce, cek, encryptedBytes);
 
