@@ -47,7 +47,7 @@ namespace AlternatePushChannel.Library
 
             var userKeyPair = p256dh;
 
-            // This seems correct
+            // This IS correct (passing server public key here throws exception, needs to be private key)
             var ecdhAgreement = AgreementUtilities.GetBasicAgreement("ECDH");
             ecdhAgreement.Init(userKeyPair.Private); // We use our private key
 
