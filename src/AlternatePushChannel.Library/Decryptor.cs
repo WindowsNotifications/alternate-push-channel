@@ -37,7 +37,7 @@ namespace AlternatePushChannel.Library
 
             string saltStr = encryption.Substring("salt=".Length);
 
-            // Maybe the payload isn't UTF8? In Edge's code they decrypt as either UTF16 or Base64 https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushMessageContent.cpp&version=GBofficial%2Frs_edge_spartan
+            // UTF16 seems correct, In Edge's code they decrypt as either UTF16 or Base64, but Base64 throws on me https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushMessageContent.cpp&version=GBofficial%2Frs_edge_spartan
             return Decrypt(Encoding.Unicode.GetBytes(encryptedPayload), serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
         }
         private static string Decrypt(byte[] encryptedBytes, byte[] serverPublicKeyBytes, string contentEncoding, byte[] salt, AsymmetricCipherKeyPair p256dh, byte[] auth)
@@ -63,7 +63,7 @@ namespace AlternatePushChannel.Library
             // This seems correct
             var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
 
-            // Maybe the user and server should be flipped?
+            // Maybe the user and server should be flipped? But flipping them didn't change anything
             // Edge's DeriveEncryptionKeys: https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushCryptoProvider.cpp&version=GBofficial%2Frs_edge_spartan&line=186&lineStyle=plain&lineEnd=186&lineStartColumn=29&lineEndColumn=49
             var cek = HKDF(salt, prk, CreateInfoChunk(contentEncoding, userPublicKey, serverPublicKeyBytes), 16);
             var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", userPublicKey, serverPublicKeyBytes), 12);
