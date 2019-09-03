@@ -66,7 +66,8 @@ namespace AlternatePushChannel.SampleApp
         {
             RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
 
-            var payload = PushManager.GetDecryptedContent(notification);
+            // Decrypt the content
+            string payload = PushManager.GetDecryptedContent(notification);
 
             // Show a notification
             // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code

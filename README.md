@@ -72,6 +72,9 @@ protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
 {
     RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
 
+    // Decrypt the content
+    string payload = PushManager.GetDecryptedContent(notification);
+
     // Show a notification
     // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
     ToastContent content = new ToastContent()
@@ -85,6 +88,11 @@ protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
                     new AdaptiveText()
                     {
                         Text = "It worked!!!"
+                    },
+                    
+                    new AdaptiveText()
+                    {
+                        Text = payload
                     }
                 }
             }
