@@ -26,13 +26,20 @@
                 Style="{ThemeResource CaptionTextBlockStyle}"/>
         </StackPanel>
 
-        <TextBox
-            x:Name="TextBoxSubscriptionJson"
-            IsReadOnly="True"
-            TextWrapping="Wrap"
-            VerticalAlignment="Bottom"
-            Header="SubscriptionJson"
-            Margin="20"
-            Text="Creating..."/>
+        <StackPanel VerticalAlignment="Bottom" Margin="20">
+            <TextBox
+                x:Name="TextBoxSubscriptionJson"
+                IsReadOnly="True"
+                TextWrapping="Wrap"
+                VerticalAlignment="Bottom"
+                Header="SubscriptionJson"
+                Text="Creating..."/>
+            <RichTextBlock Margin="0,6,0,0">
+                <Paragraph>
+                    Send a test push from
+                    <Hyperlink NavigateUri="https://interactivenotifs.azurewebsites.net/webpush">this website</Hyperlink>!
+                </Paragraph>
+            </RichTextBlock>
+        </StackPanel>
     </Grid>
 </Page>
