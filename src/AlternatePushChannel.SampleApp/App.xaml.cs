@@ -66,10 +66,7 @@ namespace AlternatePushChannel.SampleApp
         {
             RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
 
-            var headers = notification.Headers.Values.ToArray();
-            var headersKeys = notification.Headers.Keys.ToArray();
-
-            var payload = PushManager.Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
+            var payload = PushManager.Decrypt(notification);
 
             // Show a notification
             // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
@@ -84,6 +81,10 @@ namespace AlternatePushChannel.SampleApp
                     new AdaptiveText()
                     {
                         Text = "It worked!!!"
+                    },
+                    new AdaptiveText()
+                    {
+                        Text = payload
                     }
                 }
                     }

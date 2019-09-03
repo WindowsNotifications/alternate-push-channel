@@ -35,6 +35,7 @@ namespace AlternatePushChannel.Library
         /// <returns></returns>
         public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption, AsymmetricCipherKeyPair p256dh, string authKey)
         {
+            encryptedPayload = encryptedPayload.Substring(0, encryptedPayload.Length - 1);
             string serverPublicKey = cryptoKey.Substring("dh=".Length);
 
             // Note that using UrlBase64.Decode fails later on, but our WebEncoder seems to decode it so that it works later on
@@ -43,10 +44,14 @@ namespace AlternatePushChannel.Library
             string saltStr = encryption.Substring("salt=".Length);
 
             // UTF16 seems correct, In Edge's code they decrypt as either UTF16 or Base64, but Base64 throws on me https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushMessageContent.cpp&version=GBofficial%2Frs_edge_spartan
-            return Decrypt(Encoding.Unicode.GetBytes(encryptedPayload), serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
+            return Decrypt(Convert.FromBase64String(encryptedPayload), serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
         }
         private static string Decrypt(byte[] encryptedBytes, byte[] serverPublicKeyBytes, string contentEncoding, byte[] salt, AsymmetricCipherKeyPair p256dh, byte[] auth)
         {
+            //while (encryptedBytes[encryptedBytes.Length - 1] == 0)
+            //{
+            //    encryptedBytes = encryptedBytes.Take(encryptedBytes.Length - 1).ToArray();
+            //}
             // Edge's decrypt method: https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushCryptoProvider.cpp&version=GBofficial%2Frs_edge_spartan&line=125&lineStyle=plain&lineEnd=125&lineStartColumn=29&lineEndColumn=43
             // Same as the Encrypt method except user and server are swapped
 
@@ -118,8 +123,15 @@ namespace AlternatePushChannel.Library
 
             var decryptedMessage = DecryptAes(nonce, cek, encryptedBytes);
 
-            // TODO: Remove padding?
+            // Remove the padding
+            decryptedMessage = RemovePaddingFromPayload(decryptedMessage);
+
             return Encoding.UTF8.GetString(decryptedMessage);
+        }
+
+        private static byte[] RemovePaddingFromPayload(byte[] data)
+        {
+            return data.Skip(2).ToArray();
         }
 
         /// <summary>
@@ -211,6 +223,15 @@ namespace AlternatePushChannel.Library
 
         private static byte[] DecryptAes(byte[] nonce, byte[] cek, byte[] encryptedBytes)
         {
+            // The 'cipherText' (encryptedBytes) uses following format: <encrypted message data><AES GCM tag>.
+            //
+            // Decryption must follow these steps:
+            //
+            // First, configure the decryption algorithm to use the tag from 'cipherText' as the expected 'AES GCM tag'.
+            // The tag is the last 16 bytes of the 'cipherText'.
+            //
+            // Second, decrypt the encrypted message data without the tag from the 'cipherText'.
+
             var cipher = new GcmBlockCipher(new AesEngine());
             var parameters = new AeadParameters(new KeyParameter(cek), 128, nonce);
             cipher.Init(false, parameters);

@@ -40,6 +40,11 @@ namespace AlternatePushChannel.Library
         private static string _authKey;
         //private static ECDiffieHellmanCng _encrypt;
 
+        public static string Decrypt(RawNotification notification)
+        {
+            return Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
+        }
+
         /// <summary>
         /// 
         /// </summary>
