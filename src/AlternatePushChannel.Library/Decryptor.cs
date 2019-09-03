@@ -59,8 +59,8 @@ namespace AlternatePushChannel.Library
             // This is correct
             var serverPublicKey = ECKeyHelper.GetPublicKey(serverPublicKeyBytes);
 
-            // This seems correct
-            var key = ecdhAgreement.CalculateAgreement(userKeyPair.Public).ToByteArrayUnsigned();
+            // This seems correct (definitely should be server public key)
+            var key = ecdhAgreement.CalculateAgreement(serverPublicKey).ToByteArrayUnsigned();
 
             // This seems correct (but maybe we could try our different way of getting the bytes?)
             byte[] userPublicKey = ((ECPublicKeyParameters)userKeyPair.Public).Q.GetEncoded(false);
