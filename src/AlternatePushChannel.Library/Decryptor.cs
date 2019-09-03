@@ -1,4 +1,5 @@
-﻿using Org.BouncyCastle.Crypto;
+﻿using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
@@ -18,6 +19,10 @@ namespace AlternatePushChannel.Library
 {
     internal static class Decryptor
     {
+        private const int ContentEncryptionKeyLength = 16;
+        private const int ApplicationServerKeyLength = 65;
+        private const int NonceLength = 12;
+
         /// <summary>
         /// 
         /// </summary>
@@ -55,18 +60,59 @@ namespace AlternatePushChannel.Library
             var serverPublicKey = ECKeyHelper.GetPublicKey(serverPublicKeyBytes);
 
             // This seems correct
-            var key = ecdhAgreement.CalculateAgreement(serverPublicKey).ToByteArrayUnsigned();
+            var key = ecdhAgreement.CalculateAgreement(userKeyPair.Public).ToByteArrayUnsigned();
 
             // This seems correct (but maybe we could try our different way of getting the bytes?)
-            var userPublicKey = ((ECPublicKeyParameters)userKeyPair.Public).Q.GetEncoded(false);
+            byte[] userPublicKey = ((ECPublicKeyParameters)userKeyPair.Public).Q.GetEncoded(false);
+
+
+
+
+            // First, Get the content encoding specific data used to generate the keys for the message.
+            // Note right now we're always assuming aesgcm encoding
+            // Code from AesGcmPushMessageContent.cpp: https://microsoft.visualstudio.com/OS/_git/os#path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FAesGcmPushMessageContent.cpp&version=GBofficial%2Frsmaster&_a=contents
+            //byte[] pseudoRandomKeyInfo = GeneratePseudoRandomKeyInfo();
+
+            //byte[] contentEncodingContext = GenerateContentEncodingContext(userPublicKey, serverPublicKeyBytes);
+
+            //// Second, generate the keys used to encrypt the message.
+            //byte[] contentEncryptionKey;
+            //byte[] nonce;
+
+            //DeriveEncryptionKeys(
+            //    contentEncoding,
+            //    contentEncodingContext,
+            //    userPublicKey,
+            //    serverPublicKeyBytes,
+            //    userKeyPair.Private,
+            //    auth,
+            //    salt,
+            //    pseudoRandomKeyInfo,
+            //    out contentEncryptionKey,
+            //    out nonce);
+
+
+
+
+
 
             // This seems correct
-            var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: " + contentEncoding + "\0"), 32);
-
-            // Generate the content encryption key (CEK) from the content encoding info.
+            var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
 
             // Maybe the user and server should be flipped? But flipping them didn't change anything
             // Edge's DeriveEncryptionKeys: https://microsoft.visualstudio.com/OS/_git/os?path=%2Fonecoreuap%2Finetcore%2FEdgeManager%2FServiceWorkerManager%2FPushCryptoProvider.cpp&version=GBofficial%2Frs_edge_spartan&line=186&lineStyle=plain&lineEnd=186&lineStartColumn=29&lineEndColumn=49
+
+            // CreateMessageKeyGeneratorFromSharedSecret (is that the prk?)
+            /*
+             *     HRESULT hr = CreateMessageKeyGeneratorFromSharedSecret(
+        messagePublicKey, // That's the server's public key (serverPublicKeyBytes)
+        messagePrivateKey, // That's the client's private key (userKeyPair.Private)
+        authSecret, // That's the client's generated auth bytes (auth)
+        salt, // That's the salt from server (salt)
+        pseudoRandomKeyInfo
+             */
+
+            // Generate the content encryption key (CEK) from the content encoding info.
             var cek = HKDF(salt, prk, CreateInfoChunk(contentEncoding, userPublicKey, serverPublicKeyBytes), 16);
             var nonce = HKDF(salt, prk, CreateInfoChunk("nonce", userPublicKey, serverPublicKeyBytes), 12);
 
@@ -76,7 +122,92 @@ namespace AlternatePushChannel.Library
             return Encoding.UTF8.GetString(decryptedMessage);
         }
 
-        //private static void GenerateMessageKeyFromContentEncodingInfo()
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="contentEncoding">From push payload</param>
+        /// <param name="contentEncodingContext"></param>
+        /// <param name="subscriptionPublicKey"></param>
+        /// <param name="messagePublicKey">From push payload, the server public key (messagePublicKey)</param>
+        /// <param name="messagePrivateKey">Client private key (subscriptionPrivateKey)</param>
+        /// <param name="authSecret"></param>
+        /// <param name="salt"></param>
+        /// <param name="pseudoRandomKeyInfo"></param>
+        /// <param name="contentEncryptionKey"></param>
+        /// <param name="nonce"></param>
+        private static void DeriveEncryptionKeys(
+            string contentEncoding,
+            byte[] contentEncodingContext,
+            byte[] subscriptionPublicKey,
+            byte[] messagePublicKey,
+            byte[] messagePrivateKey,
+            byte[] authSecret,
+            byte[] salt,
+            byte[] pseudoRandomKeyInfo,
+            out byte[] contentEncryptionKey,
+            out byte[] nonce)
+        {
+            contentEncryptionKey = null;
+            nonce = null;
+        }
+
+        private static void CreateMessageKeyGeneratorFromSharedSecret(
+            byte[] publicKey,
+            byte[] privateKey,
+            byte[] authSecret,
+            byte[] salt,
+            byte[] pseudoRandomKeyInfo)
+        {
+            // Creates the HmacKeyDerivationFunction (HKDF) used to generate the pseudo-random keys (PRK)
+            // for push message encryption.
+            //
+            // First, create a different HKDF to create a PRK from the secrets shared between the client and sender.
+            // The PRK produced by the first HKDF is the input key material for the message HKDF created by this function.
+            //
+            // The first HKDF generates a PRK by:
+            //
+            //   1) Creating a 'shared secret' using the public key and private key to produce the input key material (IKM) for the HKDF.
+            //   2) Using the 'auth secret' from the client's push subscription as the salt for the HKDF.
+        }
+
+        private static byte[] GeneratePseudoRandomKeyInfo()
+        {
+            return Encoding.UTF8.GetBytes("Content-Encoding: auth\0");
+        }
+
+        // The content encoding context produces a BYTE[] with the following format where:
+        //
+        //  - <client/sender public key length> is a big endian uint8_t with the length of the public key, which is: 0x0 0x41 (65).
+        //  - <client/sender public key> is the big endian key data, which is 0x4 <32-byte X coordinate> <32-byte Y coordinate>.
+        //
+        // The format:
+        //
+        //      'P-2560\0'
+        //      '<client public key length>'
+        //      '<client public key data>'
+        //      '<sender public key length>'
+        //      '<sender public key data>'
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="subscriptionPublicKeyBytes">Client public key</param>
+        /// <param name="serverPublicKeyBytes">Server public key (from push payload)</param>
+        /// <returns></returns>
+        private static byte[] GenerateContentEncodingContext(byte[] subscriptionPublicKeyBytes, byte[] serverPublicKeyBytes)
+        {
+            var output = new List<byte>();
+            output.AddRange(Encoding.UTF8.GetBytes("P-256\0"));
+            output.AddRange(ConvertInt(subscriptionPublicKeyBytes.Length));
+            output.AddRange(subscriptionPublicKeyBytes);
+            output.AddRange(ConvertInt(serverPublicKeyBytes.Length));
+            output.AddRange(serverPublicKeyBytes);
+            return output.ToArray();
+        }
+
+        private static void GenerateMessageKeyFromContentEncodingInfo()
+        {
+
+        }
 
         private static byte[] DecryptAes(byte[] nonce, byte[] cek, byte[] encryptedBytes)
         {
