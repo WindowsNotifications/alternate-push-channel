@@ -9,10 +9,22 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-        <TextBlock
-            Text="Welcome!"
-            Style="{ThemeResource HeaderTextBlockStyle}"
-            Margin="20"/>
+        <StackPanel Margin="20">
+            <TextBlock
+                Text="Welcome!"
+                Style="{ThemeResource HeaderTextBlockStyle}"/>
+            <Button
+                x:Name="ButtonPushToSelf"
+                IsEnabled="False"
+                Content="Push to myself"
+                Click="ButtonPushToSelf_Click"
+                Margin="0,12,0,0"/>
+            <TextBlock
+                Text="This sends a HTTP web push from the app itself, to the app itself, just for demo purposes (the app is acting as both the server sending the push and the client receiving the push)."
+                TextWrapping="Wrap"
+                Margin="0,6,0,0"
+                Style="{ThemeResource CaptionTextBlockStyle}"/>
+        </StackPanel>
 
         <TextBox
             x:Name="TextBoxSubscriptionJson"

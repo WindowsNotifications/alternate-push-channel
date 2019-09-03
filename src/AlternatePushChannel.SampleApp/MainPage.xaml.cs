@@ -31,20 +31,39 @@ namespace AlternatePushChannel.SampleApp
             SetUpSubscription();
         }
 
+        private string _subscriptionJson;
+
         private async void SetUpSubscription()
         {
             try
             {
-                var subscription = await PushManager.Subscribe("BGg3UxXo3J_rH6VrJB2er_F8o7m2ZTGb2jiNm3tmlK4ORxsskX1HIVys5TA8lGkCYC-ur8GwrZMy-v0LZOwazvk", "myChannel1");
+                var subscription = await PushManager.Subscribe(WebPush.PublicKey, "myChannel1");
 
-                var subscriptionJson = subscription.ToJson();
+                _subscriptionJson = subscription.ToJson();
+                ButtonPushToSelf.IsEnabled = true;
 
-                TextBoxSubscriptionJson.Text = subscriptionJson;
+                TextBoxSubscriptionJson.Text = _subscriptionJson;
             }
             catch (Exception ex)
             {
                 await new MessageDialog(ex.ToString()).ShowAsync();
             }
+        }
+
+        private async void ButtonPushToSelf_Click(object sender, RoutedEventArgs e)
+        {
+            ButtonPushToSelf.IsEnabled = false;
+
+            try
+            {
+                await WebPush.SendAsync(_subscriptionJson, "Push from myself");
+            }
+            catch (Exception ex)
+            {
+                await new MessageDialog(ex.ToString()).ShowAsync();
+            }
+
+            ButtonPushToSelf.IsEnabled = true;
         }
     }
 }

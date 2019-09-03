@@ -44,6 +44,12 @@ namespace AlternatePushChannel.Library
 
         public static string GetDecryptedContent(RawNotification notification)
         {
+            if (notification.Headers == null)
+            {
+                // It's not encrypted
+                return notification.Content;
+            }
+
             return Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
         }
 

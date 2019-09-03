@@ -2,6 +2,18 @@
 How to use the alternate push channel for Windows apps
 
 
+# Super quick start
+
+1. Clone this repository
+1. Open the VS solution located in `src`
+1. Build, deploy, and launch the app
+1. Copy your *SubscriptionJson* from the app
+1. Go to [this website](https://interactivenotifs.azurewebsites.net/webpush), paste your *SubscriptionJson*, type a message, and click Send
+1. A notification should appear on your computer!
+
+
+# Integrate into your own apps...
+
 ## 1. Create a new Windows app
 
 Create a new UWP app.
@@ -89,7 +101,7 @@ protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
                     {
                         Text = "It worked!!!"
                     },
-                    
+
                     new AdaptiveText()
                     {
                         Text = payload
@@ -117,3 +129,59 @@ Go to https://interactivenotifs.azurewebsites.net/webpush, enter your public and
 ## 8. You should see a notification appear!
 
 Your background task should be triggered and a notification should appear!
+
+
+## 9. Pushing to your app from your own server
+
+Follow any online instructions for sending web push notifications from your server's choice of language (the server-side code is identical to web push notifications). For C#, we like the [WebPush NuGet package](https://www.nuget.org/packages/WebPush/) for its simplicity and ease-of-use.
+
+Here's a C# sample using the NuGet package...
+
+```csharp
+public static class WebPush
+{
+    // Keys generated from step #3 (don't store private in public source code)
+    // Note that this is the same public key you include in your app in step #4
+    private const string PublicKey = "BGg3UxX...";
+    private const string PrivateKey = "_RwmE...";
+
+    private static WebPushClient _webPushClient = new WebPushClient();
+
+    public class Subscription
+    {
+        public string Endpoint { get; set; }
+        public SubscriptionKeys Keys { get; set; }
+    }
+
+    public class SubscriptionKeys
+    {
+        public string P256DH { get; set; }
+        public string Auth { get; set; }
+    }
+
+    public static async Task SendAsync(string subscriptionJson, string payload)
+    {
+        var subscription = JsonConvert.DeserializeObject<Subscription>(subscriptionJson);
+
+        try
+        {
+            await _webPushClient.SendNotificationAsync(
+                subscription: new PushSubscription(
+                    endpoint: subscription.Endpoint,
+                    p256dh: subscription.Keys.P256DH,
+                    auth: subscription.Keys.Auth),
+                payload: payload,
+                vapidDetails: new VapidDetails(
+                    subject: "mailto:nothanks@microsoft.com",
+                    publicKey: PublicKey,
+                    privateKey: PrivateKey));
+        }
+        catch (Exception ex)
+        {
+            Debugger.Break();
+            throw ex;
+        }
+        return;
+    }
+}
+```
