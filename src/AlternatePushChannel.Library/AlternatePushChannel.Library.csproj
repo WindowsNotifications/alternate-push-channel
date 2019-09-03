@@ -121,12 +121,8 @@
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AESThenHMAC.cs" />
     <Compile Include="Decryptor.cs" />
     <Compile Include="ECKeyHelper.cs" />
-    <Compile Include="EncryptionResult.cs" />
-    <None Include="Encryptor.cs" />
-    <None Include="EncryptorAlt.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PushManager.cs" />
     <Compile Include="PushSubscription.cs" />

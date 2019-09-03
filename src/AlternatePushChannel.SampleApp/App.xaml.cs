@@ -66,7 +66,7 @@ namespace AlternatePushChannel.SampleApp
         {
             RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
 
-            var payload = PushManager.Decrypt(notification);
+            var payload = PushManager.GetDecryptedContent(notification);
 
             // Show a notification
             // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
@@ -77,16 +77,16 @@ namespace AlternatePushChannel.SampleApp
                     BindingGeneric = new ToastBindingGeneric()
                     {
                         Children =
-                {
-                    new AdaptiveText()
-                    {
-                        Text = "It worked!!!"
-                    },
-                    new AdaptiveText()
-                    {
-                        Text = payload
-                    }
-                }
+                        {
+                            new AdaptiveText()
+                            {
+                                Text = "It worked!!!"
+                            },
+                            new AdaptiveText()
+                            {
+                                Text = payload
+                            }
+                        }
                     }
                 }
             };

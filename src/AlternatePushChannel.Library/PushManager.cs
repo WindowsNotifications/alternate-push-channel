@@ -1,5 +1,4 @@
-﻿using AlternatePushChannel.Library.Encryption;
-using Org.BouncyCastle.Asn1.Nist;
+﻿using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
@@ -23,6 +22,9 @@ using Windows.Storage.Streams;
 
 namespace AlternatePushChannel.Library
 {
+    /// <summary>
+    /// Web-like implementation of push notifications for UWP.
+    /// </summary>
     public static class PushManager
     {
         /// <summary>
@@ -40,7 +42,7 @@ namespace AlternatePushChannel.Library
         private static string _authKey;
         //private static ECDiffieHellmanCng _encrypt;
 
-        public static string Decrypt(RawNotification notification)
+        public static string GetDecryptedContent(RawNotification notification)
         {
             return Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
         }
@@ -56,34 +58,6 @@ namespace AlternatePushChannel.Library
         public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption)
         {
             return Decryptor.Decrypt(encryptedPayload, cryptoKey, contentEncoding, encryption, _keyPair, _authKey);
-
-            // Trip starting dh=
-            cryptoKey = cryptoKey.Substring("dh=".Length);
-
-            // https://www.codeproject.com/Tips/1071190/Encryption-and-Decryption-of-Data-using-Elliptic-C
-
-            // Maybe this for decoding HTTP? https://www.tpeczek.com/2017/03/supporting-encrypted-content-encoding.html
-
-            // This? https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.aes?view=netframework-4.8
-
-            using (Aes aesAlg = Aes.Create(contentEncoding))
-            {
-            }
-
-            // This? https://gist.github.com/jbtule/4336842#file-aesgcm-cs
-
-            byte[] encryptedBytes = Encoding.Unicode.GetBytes(encryptedPayload);
-
-            byte[] decryptedBytes = AESThenHMAC.SimpleDecrypt(encryptedBytes, UrlB64ToUint8Array(cryptoKey), UrlB64ToUint8Array(_authKey));
-            string decrypted = Encoding.UTF8.GetString(decryptedBytes);
-            return decrypted;
-
-            //KeyParameter keyparam = ParameterUtilities.CreateKeyParameter("DES", )
-            IBufferedCipher cipher = CipherUtilities.GetCipher("DES/ECB/ISO7816_4PADDING");
-            cipher.Init(false, _keyPair.Private);
-
-            string decryptedPayload = Encoding.UTF8.GetString(cipher.DoFinal(Encoding.UTF8.GetBytes(encryptedPayload)));
-            return decryptedPayload;
         }
 
         private static async Task<PushSubscription> SubscribeHelper(string applicationServerKey, string channelId)
@@ -102,7 +76,6 @@ namespace AlternatePushChannel.Library
             var keyPair = GenerateKeyPair();
             _keyPair = keyPair;
 
-            //p256dh = Uint8ArrayToB64String(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public).GetEncoded());
             p256dh = Uint8ArrayToB64String(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public).PublicKeyData.GetBytes());
 
 
@@ -123,9 +96,7 @@ namespace AlternatePushChannel.Library
                     Keys = new PushSubscriptionKeys()
                     {
                         Auth = auth,
-                        //Auth = "6N_NTiV11SvELvTCa1wU0w", // Dummy value
                         P256DH = p256dh
-                        //P256DH = "BBmeyTF6FttmODOTLXZsUlgd-TcNrNYRccGHq87PKbO0AZSRAIO75ck6AOK55xypFtbFyqN9LCmj4h-cT6cVc1s" // Dummy value
                     },
                     Channel = channel
                 };
@@ -155,13 +126,6 @@ namespace AlternatePushChannel.Library
 
             var rawData = Convert.FromBase64String(base64);
             return rawData;
-            //const outputArray = new Uint8Array(rawData.length);
-
-            //for (let i = 0; i < rawData.length; ++i)
-            //{
-            //    outputArray[i] = rawData.charCodeAt(i);
-            //}
-            //return outputArray;
         }
 
         private static string Uint8ArrayToB64String(byte[] uint8Array)
