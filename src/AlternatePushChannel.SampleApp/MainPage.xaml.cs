@@ -40,7 +40,7 @@ namespace AlternatePushChannel.SampleApp
                 // If your app's min version is lower than 15063, you have to check whether PushManager is supported
                 if (PushManager.IsSupported)
                 {
-                    var subscription = await PushManager.Subscribe(WebPush.PublicKey, "myChannel1");
+                    var subscription = await PushManager.SubscribeAsync(WebPush.PublicKey, "myChannel1");
 
                     _subscriptionJson = subscription.ToJson();
                     ButtonPushToSelf.IsEnabled = true;

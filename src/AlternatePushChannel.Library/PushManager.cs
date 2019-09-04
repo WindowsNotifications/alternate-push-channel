@@ -46,7 +46,7 @@ namespace AlternatePushChannel.Library
         /// </summary>
         /// <param name="applicationServerKey"></param>
         /// <param name="channelId"></param>
-        public static IAsyncOperation<PushSubscription> Subscribe(string applicationServerKey, string channelId)
+        public static IAsyncOperation<PushSubscription> SubscribeAsync(string applicationServerKey, string channelId)
         {
             return SubscribeHelper(applicationServerKey, channelId).AsAsyncOperation();
         }
@@ -73,7 +73,7 @@ namespace AlternatePushChannel.Library
         /// <param name="contentEncoding">aesgcm</param>
         /// <param name="encryption">salt=WASwg7...</param>
         /// <returns></returns>
-        public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption)
+        private static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption)
         {
             return Decryptor.Decrypt(encryptedPayload, cryptoKey, contentEncoding, encryption, _keyPair, _authKey);
         }
