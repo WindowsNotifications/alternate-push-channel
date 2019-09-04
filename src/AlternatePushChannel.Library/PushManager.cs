@@ -17,7 +17,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.Foundation.Metadata;
 using Windows.Networking.PushNotifications;
+using Windows.Security.Cryptography;
 using Windows.Storage.Streams;
 
 namespace AlternatePushChannel.Library
@@ -27,6 +29,25 @@ namespace AlternatePushChannel.Library
     /// </summary>
     public static class PushManager
     {
+        private static bool? _isSupported;
+
+        /// <summary>
+        /// Gets a boolean that represents whether the PushManager is supported (only supported on 15063 and higher). If this returns false, avoid calling any other PushManager APIs. If your app's min version is set to 15063 or higher, there's no need to call this API.
+        /// </summary>
+        public static bool IsSupported
+        {
+            get
+            {
+                if (_isSupported == null)
+                {
+                    _isSupported = ApiInformation.IsTypePresent("Windows.Networking.PushNotifications.PushNotificationChannelManagerForUser")
+                        && ApiInformation.IsMethodPresent("Windows.Networking.PushNotifications.PushNotificationChannelManagerForUser", "CreateRawPushNotificationChannelWithAlternateKeyForApplicationAsync");
+                }
+
+                return _isSupported.Value;
+            }
+        }
+
         /// <summary>
         /// Creates a push channel for the given channel ID. Note that if you change your application server key, you have to delete the previous push channel.
         /// </summary>
@@ -50,7 +71,7 @@ namespace AlternatePushChannel.Library
                 return notification.Content;
             }
 
-            return Decrypt(notification.Content, notification.Headers.GetValueOrDefault("Crypto-Key"), notification.Headers.GetValueOrDefault("Content-Encoding"), notification.Headers.GetValueOrDefault("Encryption"));
+            return Decrypt(notification.Content, notification.Headers["Crypto-Key"], notification.Headers["Content-Encoding"], notification.Headers["Encryption"]);
         }
 
         /// <summary>
@@ -84,17 +105,9 @@ namespace AlternatePushChannel.Library
 
             p256dh = Uint8ArrayToB64String(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public).PublicKeyData.GetBytes());
 
-
-            string auth;
-
-            using (RNGCryptoServiceProvider randomProvider = new RNGCryptoServiceProvider())
-            {
-                var bytes = new byte[16];
-                randomProvider.GetBytes(bytes);
-                auth = Uint8ArrayToB64String(bytes);
-                _authKey = auth;
-            }
-
+            var authBytes = CryptographicBuffer.GenerateRandom(16).ToArray();
+            string auth = Uint8ArrayToB64String(authBytes);
+            _authKey = auth;
 
             return new PushSubscription()
                 {

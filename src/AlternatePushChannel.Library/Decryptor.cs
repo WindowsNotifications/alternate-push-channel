@@ -32,7 +32,7 @@ namespace AlternatePushChannel.Library
         public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption, AsymmetricCipherKeyPair p256dh, string authKey)
         {
             // Trim the null terminator
-            if (encryptedPayload.EndsWith('\0'))
+            if (encryptedPayload.EndsWith("\0"))
             {
                 encryptedPayload = encryptedPayload.Substring(0, encryptedPayload.Length - 1);
             }

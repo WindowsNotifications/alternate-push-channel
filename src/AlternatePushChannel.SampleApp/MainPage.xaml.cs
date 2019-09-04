@@ -37,12 +37,20 @@ namespace AlternatePushChannel.SampleApp
         {
             try
             {
-                var subscription = await PushManager.Subscribe(WebPush.PublicKey, "myChannel1");
+                // If your app's min version is lower than 15063, you have to check whether PushManager is supported
+                if (PushManager.IsSupported)
+                {
+                    var subscription = await PushManager.Subscribe(WebPush.PublicKey, "myChannel1");
 
-                _subscriptionJson = subscription.ToJson();
-                ButtonPushToSelf.IsEnabled = true;
+                    _subscriptionJson = subscription.ToJson();
+                    ButtonPushToSelf.IsEnabled = true;
 
-                TextBoxSubscriptionJson.Text = _subscriptionJson;
+                    TextBoxSubscriptionJson.Text = _subscriptionJson;
+                }
+                else
+                {
+                    TextBoxSubscriptionJson.Text = "PushManager is not supported on this version of Windows.";
+                }
             }
             catch (Exception ex)
             {
