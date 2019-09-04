@@ -3,18 +3,11 @@ using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Metadata;
@@ -58,10 +51,8 @@ namespace AlternatePushChannel.Library
             return SubscribeHelper(applicationServerKey, channelId).AsAsyncOperation();
         }
 
-        private static ECDsaCng _dsa;
         private static AsymmetricCipherKeyPair _keyPair;
         private static string _authKey;
-        //private static ECDiffieHellmanCng _encrypt;
 
         public static string GetDecryptedContent(RawNotification notification)
         {
@@ -93,11 +84,6 @@ namespace AlternatePushChannel.Library
 
             var channel = await PushNotificationChannelManager.GetDefault().CreateRawPushNotificationChannelWithAlternateKeyForApplicationAsync(appServerKeyBuffer, channelId);
 
-            // https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.ecdsacng?view=netframework-4.8
-            //_dsa = new ECDsaCng();
-            //_dsa.HashAlgorithm = CngAlgorithm.Sha256;
-            //var p256dh = Uint8ArrayToB64String(_dsa.Key.Export(CngKeyBlobFormat.EccPublicBlob)); // This needs some work
-
             string p256dh;
 
             var keyPair = GenerateKeyPair();
@@ -110,15 +96,15 @@ namespace AlternatePushChannel.Library
             _authKey = auth;
 
             return new PushSubscription()
+            {
+                Endpoint = channel.Uri,
+                Keys = new PushSubscriptionKeys()
                 {
-                    Endpoint = channel.Uri,
-                    Keys = new PushSubscriptionKeys()
-                    {
-                        Auth = auth,
-                        P256DH = p256dh
-                    },
-                    Channel = channel
-                };
+                    Auth = auth,
+                    P256DH = p256dh
+                },
+                Channel = channel
+            };
         }
 
         private static AsymmetricCipherKeyPair GenerateKeyPair()
