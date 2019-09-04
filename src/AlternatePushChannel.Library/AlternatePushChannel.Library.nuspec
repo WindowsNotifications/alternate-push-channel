@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>AlternatePushChannel.Library</id>
+        <version>0.0.0</version>
+        <authors>Microsoft</authors>
+        <owners>microsoft, andrewleader</owners>
+        <projectUrl>https://github.com/WindowsNotifications/alternate-push-channel</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <summary>Use the equivalent of Web Push in your UWP apps, meaning you don't have to register your app with the Store or WNS to send push notifications!</summary>
+        <description>Beta release, subject to change. Use the equivalent of Web Push in your UWP apps, meaning you don't have to register your app with the Store or WNS to send push notifications!</description>
+        <copyright>© Microsoft Corporation. All rights reserved.</copyright>
+        <tags>notifications, win10, windows 10, push notifications, web push, vapid, uwp, c#, csharp, c++</tags>
+        <licenseUrl>https://github.com/WindowsNotifications/alternate-push-channel/blob/master/LICENSE</licenseUrl>
+        <dependencies>
+            <dependency id="Portable.BouncyCastle" version="1.8.5"/>
+            <dependency id="Newtonsoft.Json" version="12.0.2"/>
+        </dependencies>
+    </metadata>
+    
+    <files>
+
+        <!-- General -->
+        <file src="bin\Release\AlternatePushChannel.Library.winmd" target="lib\uap10.0"/>
+        <file src="bin\Release\AlternatePushChannel.Library.pdb" target="lib\uap10.0"/>
+        <file src="bin\Release\AlternatePushChannel.Library.pri" target="lib\uap10.0"/>
+        <file src="bin\Release\AlternatePushChannel.Library.xml" target="lib\uap10.0"/>
+        
+    </files>
+
+</package>

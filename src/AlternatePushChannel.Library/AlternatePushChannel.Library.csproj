@@ -56,6 +56,8 @@
     <DebugType>pdbonly</DebugType>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <ErrorReport>prompt</ErrorReport>
+    <ProduceReferenceWinmd>false</ProduceReferenceWinmd>
+    <DocumentationFile>bin\Release\AlternatePushChannel.Library.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
     <PlatformTarget>ARM</PlatformTarget>
