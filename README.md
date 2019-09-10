@@ -16,12 +16,12 @@ How to use the alternate push channel for Windows apps
 
 ## 1. Create a new Windows app
 
-Create a new UWP app.
+Create a new UWP app, or open an existing one.
 
 
 ## 2. Add the library
 
-Our AlternatePushChannel library helps simplify some of the code around encryption (located in this repository in `src\AlternatePushChannel.Library`).
+Install the NuGet package, [`AlternatePushChannel.Library`](https://www.nuget.org/packages/AlternatePushChannel.Library) (be sure to **include prerelease** as it's currently in alpha).
 
 
 ## 3. Create your application server keys
@@ -33,12 +33,12 @@ You can easily generate a public and private key at this website: https://web-pu
 
 ## 4. Create the push subscription
 
-Create a subscription, passing in your public server key. You also get to create up to 1,000 different channels, so pick a channel of your choice. Note that if you ever change the public server key, you'll first have to unregister and then re-subscribe the push channel (otherwise it'll return a cached push channel with the old key).
+Create a subscription, passing in your public server key. You also get to create up to 1,000 different channels, so pick a channel of your choice.
 
 You'll want to grab the subscriptionJson as you'll need that to send a push notification.
 
 ```csharp
-var subscription = await PushManager.Subscribe("YOUR_PUBLIC_KEY", "myChannel1");
+var subscription = await PushManager.SubscribeAsync("YOUR_PUBLIC_KEY", "myChannel1");
 
 var subscriptionJson = subscription.ToJson();
 
@@ -82,36 +82,49 @@ private void RegisterPushBackgroundTask()
 // New method
 protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
 {
-    RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
+    // We need to get a deferral since we'll be doing async code
+    var deferral = args.TaskInstance.GetDeferral();
 
-    // Decrypt the content
-    string payload = PushManager.GetDecryptedContent(notification);
-
-    // Show a notification
-    // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
-    ToastContent content = new ToastContent()
+    try
     {
-        Visual = new ToastVisual()
-        {
-            BindingGeneric = new ToastBindingGeneric()
-            {
-                Children =
-                {
-                    new AdaptiveText()
-                    {
-                        Text = "It worked!!!"
-                    },
+        RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
 
-                    new AdaptiveText()
+        // Decrypt the content
+        string payload = await PushManager.GetDecryptedContentAsync(notification);
+
+        // Show a notification
+        // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
+        ToastContent content = new ToastContent()
+        {
+            Visual = new ToastVisual()
+            {
+                BindingGeneric = new ToastBindingGeneric()
+                {
+                    Children =
                     {
-                        Text = payload
+                        new AdaptiveText()
+                        {
+                            Text = "Push notification received"
+                        },
+
+                        new AdaptiveText()
+                        {
+                            Text = payload
+                        }
                     }
                 }
             }
-        }
-    };
+        };
 
-    ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(content.GetXml()));
+        ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(content.GetXml()));
+    }
+    catch
+    {
+        // Decryption probably failed, did your server use the correct keys to sign?
+    }
+
+    // Complete the deferral, telling the OS that we're done
+    deferral.Complete();
 }
 ```
 
