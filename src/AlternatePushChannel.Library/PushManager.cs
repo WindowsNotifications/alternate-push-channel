@@ -3,6 +3,7 @@ using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using System;
@@ -51,10 +52,12 @@ namespace AlternatePushChannel.Library
             return SubscribeHelper(applicationServerKey, channelId).AsAsyncOperation();
         }
 
-        private static AsymmetricCipherKeyPair _keyPair;
-        private static string _authKey;
+        public static IAsyncOperation<string> GetDecryptedContentAsync(RawNotification notification)
+        {
+            return GetDecryptedContentHelperAsync(notification).AsAsyncOperation();
+        }
 
-        public static string GetDecryptedContent(RawNotification notification)
+        private static async Task<string> GetDecryptedContentHelperAsync(RawNotification notification)
         {
             if (notification.Headers == null)
             {
@@ -62,38 +65,116 @@ namespace AlternatePushChannel.Library
                 return notification.Content;
             }
 
-            return Decrypt(notification.Content, notification.Headers["Crypto-Key"], notification.Headers["Content-Encoding"], notification.Headers["Encryption"]);
-        }
+            string encryptedPayload = notification.Content; // r/JwZaorThJfqkpZjV6umbDXQy9G
+            string cryptoKey = notification.Headers["Crypto-Key"]; // dh=BNSSQjo...
+            string contentEncoding = notification.Headers["Content-Encoding"]; // aesgcm
+            string encryption = notification.Headers["Encryption"]; // salt=WASwg7...
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="encryptedPayload">r/JwZaorThJfqkpZjV6umbDXQy9G</param>
-        /// <param name="cryptoKey">dh=BNSSQjo...</param>
-        /// <param name="contentEncoding">aesgcm</param>
-        /// <param name="encryption">salt=WASwg7...</param>
-        /// <returns></returns>
-        private static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption)
-        {
-            return Decryptor.Decrypt(encryptedPayload, cryptoKey, contentEncoding, encryption, _keyPair, _authKey);
+            var storage = await PushSubscriptionStorage.GetAsync();
+
+            StoredPushSubscription[] storedSubscriptions = storage.GetSubscriptions(notification.ChannelId);
+
+            foreach (var sub in storedSubscriptions)
+            {
+                try
+                {
+                    byte[] userPrivateKey = WebEncoder.Base64UrlDecode(sub.P265Private);
+                    byte[] userPublicKey = WebEncoder.Base64UrlDecode(sub.Keys.P256DH);
+
+                    string decrypted = Decryptor.Decrypt(encryptedPayload, cryptoKey, contentEncoding, encryption, userPrivateKey, userPublicKey, sub.Keys.Auth);
+
+                    // Make sure we've deleted any old channels now that we successfully received with this one
+                    await storage.DeleteSubscriptionsOlderThanAsync(notification.ChannelId, sub);
+
+                    return decrypted;
+                }
+                catch
+                {
+
+                }
+            }
+
+            throw new Exception("Failed to decrypt");
         }
 
         private static async Task<PushSubscription> SubscribeHelper(string applicationServerKey, string channelId)
         {
             IBuffer appServerKeyBuffer = UrlB64ToUint8Array(applicationServerKey).AsBuffer();
 
+            // No matter what, we always get the channel (we don't do any caching and expiration logic, WNS caches the channel for 24 hours)
             var channel = await PushNotificationChannelManager.GetDefault().CreateRawPushNotificationChannelWithAlternateKeyForApplicationAsync(appServerKeyBuffer, channelId);
 
+            var storage = await PushSubscriptionStorage.GetAsync();
+
+            var existingSubscriptionInfo = storage.GetSubscriptions(channelId).FirstOrDefault(i => i.ChannelUri == channel.Uri);
+            if (existingSubscriptionInfo != null)
+            {
+                // If the app server key has changed
+                if (existingSubscriptionInfo.AppServerKey != applicationServerKey)
+                {
+                    // We need to destroy the WNS channel and create a new one
+
+                    // Close the channel
+                    channel.Close();
+
+                    // Create a new one
+                    channel = await PushNotificationChannelManager.GetDefault().CreateRawPushNotificationChannelWithAlternateKeyForApplicationAsync(appServerKeyBuffer, channelId);
+
+                    // And set existing subscription info to null since there's no longer existing info
+                    existingSubscriptionInfo = null;
+                }
+
+                else
+                {
+                    // Otherwise, return the existing info
+                    return new PushSubscription()
+                    {
+                        Endpoint = channel.Uri,
+                        Keys = new PushSubscriptionKeys()
+                        {
+                            Auth = existingSubscriptionInfo.Keys.Auth,
+                            P256DH = existingSubscriptionInfo.Keys.P256DH
+                        },
+                        Channel = channel,
+                        ExpirationTime = channel.ExpirationTime
+                    };
+                }
+            }
+
+            // Note that we have to store a series of these key pairs...
+            // A developer with an existing channel might call Subscribe again, generating a new channel and key pair,
+            // but they fail to upload the channel/key to their server. Therefore, their server still has the old channel/key,
+            // and pushing to that channel still needs to work, so we need to hold onto the old keys.
+            // We can't delete the old keys until either (1) the expiration time of 30 days for the channel occurs,
+            // or (2) we've received and decrypted a push with the newer key pair, and can therefore throw away the old keys, since
+            // we know at that point that the server successfully received the new channel/key.
+            // Although in case (2), the app developer could still hold onto a previous channel and use it, so the only real truth is the
+            // expiration time. Other than that, any channel that we return MUST keep working.
+            // However, W3C spec states that once a message has been received for a newer subscription, the old ones MUST be deactivated,
+            // so (2) is the correct pattern
+
+
+            // Otherwise, we have to create new pairs for this new channel
             string p256dh;
 
             var keyPair = GenerateKeyPair();
-            _keyPair = keyPair;
 
             p256dh = Uint8ArrayToB64String(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public).PublicKeyData.GetBytes());
 
             var authBytes = CryptographicBuffer.GenerateRandom(16).ToArray();
             string auth = Uint8ArrayToB64String(authBytes);
-            _authKey = auth;
+
+            await storage.SavePushSubscriptionAsync(channelId, new StoredPushSubscription()
+            {
+                ChannelUri = channel.Uri,
+                Keys = new PushSubscriptionKeys()
+                {
+                    Auth = auth,
+                    P256DH = p256dh
+                },
+                AppServerKey = applicationServerKey,
+                P265Private = Uint8ArrayToB64String(PrivateKeyInfoFactory.CreatePrivateKeyInfo(keyPair.Private).ToAsn1Object().GetDerEncoded())
+            });
 
             return new PushSubscription()
             {
@@ -103,7 +184,8 @@ namespace AlternatePushChannel.Library
                     Auth = auth,
                     P256DH = p256dh
                 },
-                Channel = channel
+                Channel = channel,
+                ExpirationTime = channel.ExpirationTime
             };
         }
 

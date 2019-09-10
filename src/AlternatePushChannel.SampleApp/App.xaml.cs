@@ -62,37 +62,69 @@ namespace AlternatePushChannel.SampleApp
         }
 
         // New method
-        protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
+        protected override async void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
-            RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
+            var deferral = args.TaskInstance.GetDeferral();
 
-            // Decrypt the content
-            string payload = PushManager.GetDecryptedContent(notification);
-
-            // Show a notification
-            // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
-            ToastContent content = new ToastContent()
+            try
             {
-                Visual = new ToastVisual()
+                RawNotification notification = (RawNotification)args.TaskInstance.TriggerDetails;
+
+                // Decrypt the content
+                string payload = await PushManager.GetDecryptedContentAsync(notification);
+
+                // Show a notification
+                // You'll need Microsoft.Toolkit.Uwp.Notifications NuGet package installed for this code
+                ToastContent content = new ToastContent()
                 {
-                    BindingGeneric = new ToastBindingGeneric()
+                    Visual = new ToastVisual()
                     {
-                        Children =
+                        BindingGeneric = new ToastBindingGeneric()
+                        {
+                            Children =
                         {
                             new AdaptiveText()
                             {
-                                Text = "It worked!!!"
+                                Text = "Push notification received"
                             },
                             new AdaptiveText()
                             {
                                 Text = payload
                             }
                         }
+                        }
                     }
-                }
-            };
+                };
 
-            ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(content.GetXml()));
+                ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(content.GetXml()));
+            }
+            catch (Exception ex)
+            {
+                ToastContent content = new ToastContent()
+                {
+                    Visual = new ToastVisual()
+                    {
+                        BindingGeneric = new ToastBindingGeneric()
+                        {
+                            Children =
+                            {
+                                new AdaptiveText()
+                                {
+                                    Text = "Failed decrypting"
+                                },
+                                new AdaptiveText()
+                                {
+                                    Text = ex.ToString()
+                                }
+                            }
+                        }
+                    }
+                };
+
+                ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(content.GetXml()));
+            }
+
+            deferral.Complete();
         }
 
         /// <summary>

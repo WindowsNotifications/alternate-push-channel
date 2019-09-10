@@ -24,7 +24,7 @@ namespace AlternatePushChannel.Library
         /// <param name="p256dh">Client-generated</param>
         /// <param name="authKey">Client-generated</param>
         /// <returns></returns>
-        public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption, AsymmetricCipherKeyPair p256dh, string authKey)
+        public static string Decrypt(string encryptedPayload, string cryptoKey, string contentEncoding, string encryption, byte[] userPrivateKey, byte[] userPublicKey, string authKey)
         {
             // Trim the null terminator
             if (encryptedPayload.EndsWith("\0"))
@@ -52,21 +52,17 @@ namespace AlternatePushChannel.Library
 
             string saltStr = encryption.Substring("salt=".Length);
 
-            return Decrypt(encryptedBytes, serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), p256dh, WebEncoder.Base64UrlDecode(authKey));
+            return Decrypt(encryptedBytes, serverPublicKeyBytes, contentEncoding, WebEncoder.Base64UrlDecode(saltStr), userPrivateKey, userPublicKey, WebEncoder.Base64UrlDecode(authKey));
         }
-        private static string Decrypt(byte[] encryptedBytes, byte[] serverPublicKeyBytes, string contentEncoding, byte[] salt, AsymmetricCipherKeyPair p256dh, byte[] auth)
+        private static string Decrypt(byte[] encryptedBytes, byte[] serverPublicKeyBytes, string contentEncoding, byte[] salt, byte[] userPrivateKey, byte[] userPublicKey, byte[] auth)
         {
-            var userKeyPair = p256dh;
-
             // This code is basically the reverse of https://github.com/web-push-libs/web-push-csharp/blob/master/WebPush/Util/Encryptor.cs
             var ecdhAgreement = AgreementUtilities.GetBasicAgreement("ECDH");
-            ecdhAgreement.Init(userKeyPair.Private); // We use our private key
+            ecdhAgreement.Init(PrivateKeyFactory.CreateKey(userPrivateKey)); // We use our private key
 
             var serverPublicKey = ECKeyHelper.GetPublicKey(serverPublicKeyBytes);
 
             var key = ecdhAgreement.CalculateAgreement(serverPublicKey).ToByteArrayUnsigned();
-
-            byte[] userPublicKey = ((ECPublicKeyParameters)userKeyPair.Public).Q.GetEncoded(false);
 
             var prk = HKDF(auth, key, Encoding.UTF8.GetBytes("Content-Encoding: auth\0"), 32);
 

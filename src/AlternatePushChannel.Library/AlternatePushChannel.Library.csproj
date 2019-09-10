@@ -129,6 +129,8 @@
     <Compile Include="PushManager.cs" />
     <Compile Include="PushSubscription.cs" />
     <Compile Include="PushSubscriptionKeys.cs" />
+    <Compile Include="PushSubscriptionStorage.cs" />
+    <Compile Include="SimpleAsyncWorkerQueue.cs" />
     <Compile Include="WebEncoder.cs" />
   </ItemGroup>
   <ItemGroup>
