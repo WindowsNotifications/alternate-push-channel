@@ -1,3 +1,7 @@
+# ⚠️⚠️⚠️ UNSUPPORTED ⚠️⚠️⚠️
+
+This is now unsupported and does not work. You cannot use alternate push channels on UWP apps.
+
 # Alternate Push Channels (Web Push for Windows apps)
 How to use the alternate push channel for Windows apps
 
